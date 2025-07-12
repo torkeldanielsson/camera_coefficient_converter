@@ -1,13 +1,17 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
+
 project(
     camera_coefficient_converter
     VERSION 1.0
     LANGUAGES CXX)
+
 add_executable(${CMAKE_PROJECT_NAME}
     src/main.cpp)
+
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
     CXX_STANDARD 17
     CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     _CRT_SECURE_NO_WARNINGS UNICODE NOMINMAX WIN32_LEAN_AND_MEAN VC_EXTRALEAN)
@@ -16,6 +20,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Weverything
     -Werror
@@ -34,26 +39,28 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-c++2a-compat
     -Wno-extra-semi-stmt
     -Wno-deprecated-declarations
+    -Wno-unsafe-buffer-usage
     -ffast-math
     -fno-strict-aliasing
     -funsigned-char
     -ftrapv)
 endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
     -Wno-deprecated-declarations)
 endif()
+
 set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+
+target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PRIVATE
     ${PROJECT_ROOT}/thirdparty/include
     ${PROJECT_ROOT}/thirdparty/include/ceres/internal/miniglog)
 
-# Find and link Ceres libraries
 find_library(CERES_LIB 
     NAMES ceres libceres.a libceres.so ceres.lib
     PATHS 
         ${PROJECT_ROOT}/thirdparty/lib
-        ${PROJECT_ROOT}/thirdparty/windows/ceres/lib
     NO_DEFAULT_PATH)
 
 if(CERES_LIB)
@@ -62,19 +69,16 @@ else()
     message(FATAL_ERROR "Ceres library not found. Please ensure it's in thirdparty/lib/ or thirdparty/windows/ceres/lib/")
 endif()
 
-# Try to find optional dependencies
 find_library(GLOG_LIB 
     NAMES glog libglog.a libglog.so glog.lib
     PATHS 
         ${PROJECT_ROOT}/thirdparty/lib
-        ${PROJECT_ROOT}/thirdparty/windows/ceres/lib
     NO_DEFAULT_PATH)
 
 find_library(GFLAGS_LIB 
     NAMES gflags libgflags.a libgflags.so gflags.lib
     PATHS 
         ${PROJECT_ROOT}/thirdparty/lib
-        ${PROJECT_ROOT}/thirdparty/windows/ceres/lib
     NO_DEFAULT_PATH)
 
 if(GLOG_LIB)
@@ -85,10 +89,8 @@ if(GFLAGS_LIB)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${GFLAGS_LIB})
 endif()
 
-# System libraries
 if(UNIX AND NOT APPLE)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE pthread dl)
-    # Try to find system BLAS/LAPACK
     find_package(BLAS QUIET)
     find_package(LAPACK QUIET)
     if(LAPACK_FOUND)
@@ -105,8 +107,6 @@ if(WIN32)
     $<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>/$<TARGET_FILE_NAME:${CMAKE_PROJECT_NAME}>
     ${CMAKE_CURRENT_SOURCE_DIR}/bin/$<TARGET_FILE_NAME:${CMAKE_PROJECT_NAME}>)
 elseif(UNIX)
-    # Need to use a custom command with `cp` instead of `copy_if_different`,
-    # otherwise hot-reloading won't work on Linux
     add_custom_command(TARGET ${CMAKE_PROJECT_NAME}
     POST_BUILD COMMAND
     mkdir -p ${CMAKE_CURRENT_SOURCE_DIR}/bin/ &&
